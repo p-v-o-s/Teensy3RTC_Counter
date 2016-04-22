@@ -33,10 +33,10 @@ void loop() {
   timestamp = RTC_counter.get_timestamp_millihundreths()/1e5; //covert to seconds
   Serial.println(timestamp,6);
   digitalWrite(LED_PIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(999);
+  delay(1000);
   Serial.print("tock ");
   timestamp = RTC_counter.get_timestamp_millihundreths()/1e5; //convert to seconds
   Serial.println(timestamp,6);
   digitalWrite(LED_PIN, LOW);   // turn the LED on (HIGH is the voltage level)
-  delay(999);
+  delay(1000);
 }

@@ -13,6 +13,11 @@
 #define RTC_COMPENSATE 0
 #define TWO_POW_20 1048576
 
+#define RTC_MILLIS         ((RTC_TPR*125)   >> 12)  /* OPTIMIZED = RTC_TPR*10^3/2^15 */
+#define RTC_MILLITENTHS    ((RTC_TPR*625)   >> 11)  /* OPTIMIZED = RTC_TPR*10^4/2^15 */
+#define RTC_MILLIHUNDRETHS ((RTC_TPR*3125)  >> 10)  /* OPTIMIZED = RTC_TPR*10^5/2^15 */
+#define RTC_MICROS         ((RTC_TPR*15625) >> 9)   /* OPTIMIZED = RTC_TPR*10^6/2^15 */
+
 class _Teensy3RTC_CounterClass{
 public:
   _Teensy3RTC_CounterClass(){};
@@ -30,8 +35,6 @@ public:
     RTC_SR = 0;                        //reset Status Register and disable seconds counter (!TCE)
     RTC_TPR = 0;                       //reset Time Prescaler Register
     _seconds = 0;
-    _microseconds = 0;
-    _leftover_microseconds = 0;
     RTC_SR = RTC_SR_TCE;               //renable the seconds counter (TCE)
     RTC_IER |= 0x10;                   //set the TSIE bit (Time Seconds Interrupt Enable)
     Teensy3Clock.compensate(RTC_COMPENSATE);
@@ -44,14 +47,14 @@ public:
     return _seconds;
   }
   uint32_t get_microseconds(){
-    //while (_mutex){}; //spin until released
-    return _compensated_micros();
+    while (_mutex){}; //spin until released
+    return RTC_MICROS;
   }
   float get_timestamp_float32(){
     while (_mutex){}; //spin until released
     // CRITICAL SECTION --------------------------------------------------------
     NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    float timestamp = _seconds + _compensated_micros()/1e6;
+    float timestamp = _seconds + RTC_MICROS/1e6;
     NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
     // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
@@ -60,7 +63,7 @@ public:
     while (_mutex){}; //spin until released
     // CRITICAL SECTION --------------------------------------------------------
     NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    double timestamp = (double) _seconds + (double) _compensated_micros()/1e6;
+    double timestamp = (double) _seconds + (double) RTC_MICROS/1e6;
     NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
     // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
@@ -70,7 +73,7 @@ public:
     while (_mutex){}; //spin until released
     // CRITICAL SECTION --------------------------------------------------------
     NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    uint32_t timestamp = 1000*_seconds + (uint32_t) _compensated_micros()/1000;
+    uint32_t timestamp = 1000*_seconds + (uint32_t) RTC_MILLIS;
     NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
     // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
@@ -80,8 +83,7 @@ public:
     while (_mutex){}; //spin until released
     // CRITICAL SECTION --------------------------------------------------------
     NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    uint32_t timestamp = 10000*_seconds + (uint32_t) _compensated_micros()/100;
-    NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
+    uint32_t timestamp = 10000*_seconds + (uint32_t) RTC_MILLITENTHS;
     // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
   }
@@ -90,7 +92,7 @@ public:
     while (_mutex){}; //spin until released
     // CRITICAL SECTION --------------------------------------------------------
     NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    uint32_t timestamp = 100000*_seconds + (uint32_t) _compensated_micros()/10;
+    uint32_t timestamp = 100000*_seconds + (uint32_t) RTC_MILLIHUNDRETHS;
     NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
     // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
@@ -100,7 +102,7 @@ public:
     while (_mutex){}; //spin until released
     // CRITICAL SECTION --------------------------------------------------------
     NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    uint32_t timestamp = 1000000*_seconds + (uint32_t) _compensated_micros();
+    uint32_t timestamp = 1000000*_seconds + (uint32_t) RTC_MICROS;
     NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
     // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
@@ -109,7 +111,7 @@ public:
     while (_mutex){}; //spin until released
     // CRITICAL SECTION --------------------------------------------------------
     NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    uint64_t timestamp = 1000000*_seconds + (uint64_t) _compensated_micros();
+    uint64_t timestamp = 1000000*_seconds + (uint64_t) RTC_MICROS;
     NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
     // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
@@ -118,24 +120,17 @@ public:
     _mutex = true;
     // CRITICAL SECTION --------------------------------------------------------
     NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    //_leftover_microseconds = 1000000 - _microseconds;  //save for compensation
     _seconds++;
-    _microseconds = 0;
     NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
     // END CRITICAL SECTION ----------------------------------------------------
     _mutex = false;
   }
-  uint32_t _compensated_micros(){
-    return _microseconds;
-    //return (_microseconds*(TWO_POW_20 + _leftover_microseconds)) >> 20;  //OPTIMIZED DO NOT CHANGE
-  }
+
   
 private:
   //Attributes
   bool _mutex = false;           //controls access to the data for atomic reads
   volatile uint32_t _seconds;
-  elapsedMicros _microseconds;
-  volatile int32_t _leftover_microseconds;  //must be signed or weird things may happen!
 } RTC_counter;
 
 void rtc_seconds_isr(void)
