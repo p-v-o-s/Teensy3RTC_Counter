@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from sklearn import linear_model
 
-UPDATE_INTERVAL = 10
+UPDATE_INTERVAL = 100000
 
 
 df = "RTC_drift_data.txt"
@@ -30,7 +30,7 @@ try:
         ax.plot(t_ext, t_rtc-t_ext, "r.-", label = "RTC time diff.")
         ax.plot(t_ext, t_mic-t_ext, "m.-", label = "MCU time diff.")
         #ax.plot(t_ext, t_cpu-t_ext, "c.-", label = "CPU time diff.")
-        #ax.plot(t_ext, t_ntp-t_ext, "g.-", label = "NTP time diff.")
+        ax.plot(t_ext, t_ntp-t_ext, "g.-", label = "NTP time diff.")
         ax.legend(loc="upper left")
         #show the graphs but allow program to continue
         plt.pause(UPDATE_INTERVAL)

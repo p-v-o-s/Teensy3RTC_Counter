@@ -10,13 +10,7 @@
   Teensy3RTC_CounterClass
   
 *******************************************************************************/
-#define RTC_COMPENSATE 0
-#define TWO_POW_20 1048576
-
-#define RTC_MILLIS         ((RTC_TPR*125)   >> 12)  /* OPTIMIZED = RTC_TPR*10^3/2^15 */
-#define RTC_MILLITENTHS    ((RTC_TPR*625)   >> 11)  /* OPTIMIZED = RTC_TPR*10^4/2^15 */
-#define RTC_MILLIHUNDRETHS ((RTC_TPR*3125)  >> 10)  /* OPTIMIZED = RTC_TPR*10^5/2^15 */
-#define RTC_MICROS         ((RTC_TPR*15625) >> 9)   /* OPTIMIZED = RTC_TPR*10^6/2^15 */
+#define RTC_COMPENSATE 582
 
 class _Teensy3RTC_CounterClass{
 public:
@@ -27,115 +21,93 @@ public:
   }
   //Functionality methods
   void reset(){
-    //while (_mutex){}; //spin until released
-    _mutex = true;
     // CRITICAL SECTION --------------------------------------------------------
-    NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    RTC_IER &= ~0x10;                  //clear the TSIE bit (Time Seconds Interrupt Enable)
-    RTC_SR = 0;                        //reset Status Register and disable seconds counter (!TCE)
-    RTC_TPR = 0;                       //reset Time Prescaler Register
-    _seconds = 0;
-    RTC_SR = RTC_SR_TCE;               //renable the seconds counter (TCE)
-    RTC_IER |= 0x10;                   //set the TSIE bit (Time Seconds Interrupt Enable)
-    Teensy3Clock.compensate(RTC_COMPENSATE);
-    NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);   //enable interrupt
+    noInterrupts();
+    _prescaler_offset  = RTC_TPR;      //save the current state of the Time Prescaler Register
+    _seconds_offset    = RTC_TSR;      //save the current state of the Time Seconds Register
+    interrupts();
     // END CRITICAL SECTION ----------------------------------------------------
-    _mutex = false;
+  }
+  void store(){
+    //use to quickly mark the time for use in timestamps
+    // CRITICAL SECTION --------------------------------------------------------
+    noInterrupts();
+    _prescaler_stored = RTC_TPR;       //save the current state of the Time Prescaler Register
+    _seconds_stored   = RTC_TSR;       //save the current state of the Time Seconds Register
+    interrupts();
+    // END CRITICAL SECTION ----------------------------------------------------
   }
   uint32_t get_seconds(){
-    while (_mutex){}; //spin until released
-    return _seconds;
+    return _seconds_count();
   }
   uint32_t get_microseconds(){
-    while (_mutex){}; //spin until released
-    return RTC_MICROS;
+    return _micros_count();
   }
-  float get_timestamp_float32(){
-    while (_mutex){}; //spin until released
-    // CRITICAL SECTION --------------------------------------------------------
-    NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    float timestamp = _seconds + RTC_MICROS/1e6;
-    NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
-    // END CRITICAL SECTION ----------------------------------------------------
+  float  get_timestamp_float32(){
+    float timestamp = _seconds_count() + _micros_count()/1e6;
     return timestamp;
   }
   double get_timestamp_float64(){
-    while (_mutex){}; //spin until released
-    // CRITICAL SECTION --------------------------------------------------------
-    NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    double timestamp = (double) _seconds + (double) RTC_MICROS/1e6;
-    NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
-    // END CRITICAL SECTION ----------------------------------------------------
+    double timestamp = _seconds_count() + _micros_count()/1e6;
     return timestamp;
   }
   uint32_t get_timestamp_millis(){
     //warning: rolls over in ~49.7 days
-    while (_mutex){}; //spin until released
-    // CRITICAL SECTION --------------------------------------------------------
-    NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    uint32_t timestamp = 1000*_seconds + (uint32_t) RTC_MILLIS;
-    NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
-    // END CRITICAL SECTION ----------------------------------------------------
+    uint32_t timestamp = 1000*_seconds_count();
+    timestamp +=  _millis_count();
     return timestamp;
   }
   uint32_t get_timestamp_millitenths(){
     //warning: rolls over in ~4.97 days
-    while (_mutex){}; //spin until released
-    // CRITICAL SECTION --------------------------------------------------------
-    NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    uint32_t timestamp = 10000*_seconds + (uint32_t) RTC_MILLITENTHS;
-    // END CRITICAL SECTION ----------------------------------------------------
+    uint32_t timestamp = 10000*_seconds_count();
+    timestamp += _millitenths_count();
     return timestamp;
   }
   uint32_t get_timestamp_millihundreths(){
     //warning: rolls over in ~11.9 hours
-    while (_mutex){}; //spin until released
-    // CRITICAL SECTION --------------------------------------------------------
-    NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    uint32_t timestamp = 100000*_seconds + (uint32_t) RTC_MILLIHUNDRETHS;
-    NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
-    // END CRITICAL SECTION ----------------------------------------------------
+    uint32_t timestamp = 100000*_seconds_count();
+    timestamp +=  _millihundreths_count();
     return timestamp;
   }
   uint32_t get_timestamp_micros(){
     //warning: rolls over in ~1.19 hours
-    while (_mutex){}; //spin until released
-    // CRITICAL SECTION --------------------------------------------------------
-    NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    uint32_t timestamp = 1000000*_seconds + (uint32_t) RTC_MICROS;
-    NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
-    // END CRITICAL SECTION ----------------------------------------------------
+    uint32_t timestamp = 1000000*_seconds_count();
+    timestamp += _micros_count();
     return timestamp;
   }
   uint64_t get_timestamp_micros64(){
-    while (_mutex){}; //spin until released
-    // CRITICAL SECTION --------------------------------------------------------
-    NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    uint64_t timestamp = 1000000*_seconds + (uint64_t) RTC_MICROS;
-    NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
-    // END CRITICAL SECTION ----------------------------------------------------
+    uint64_t timestamp = 1000000*_seconds_count();
+    timestamp += _micros_count();
     return timestamp;
   }
-  void _seconds_tick(){
-    _mutex = true;
-    // CRITICAL SECTION --------------------------------------------------------
-    NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    _seconds++;
-    NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
-    // END CRITICAL SECTION ----------------------------------------------------
-    _mutex = false;
-  }
 
-  
 private:
+  uint32_t _seconds_count(){
+    return  _seconds_stored - _seconds_offset;
+  }
+  int32_t _prescaler_count(){                    //NOTE: the return type must be signed!
+    int32_t prescaler_value = _prescaler_stored; //convert to signed integer
+    return prescaler_value - _prescaler_offset;
+  }
+  int32_t _micros_count(){                       // NOTE: the return type must be signed!
+    return ((_prescaler_count()*15625) >> 9);    // OPTIMIZED = pc*10^6/2^15
+  }
+  int32_t _millihundreths_count(){               // NOTE: the return type must be signed!
+    return ((_prescaler_count()*3125)  >> 10);   // OPTIMIZED = pc*10^5/2^15
+  }
+  int32_t _millitenths_count(){                  // NOTE: the return type must be signed!
+    return ((_prescaler_count()*625)   >> 11);   // OPTIMIZED = pc*10^4/2^15
+  }
+  int32_t _millis_count(){                       // NOTE: the return type must be signed!
+    return ((_prescaler_count()*125)   >> 12);   // OPTIMIZED = pc*10^3/2^15
+  }
   //Attributes
+  uint32_t _seconds_offset    = 0;
+  uint32_t _prescaler_offset  = 0;
+  uint32_t _seconds_stored    = 0;
+  uint32_t _prescaler_stored  = 0;
   bool _mutex = false;           //controls access to the data for atomic reads
-  volatile uint32_t _seconds;
 } RTC_counter;
 
-void rtc_seconds_isr(void)
-{
-  RTC_counter._seconds_tick();
-}
 
 #endif /* _TEENSY3RTC_COUNTER_H_INCLUDED */
