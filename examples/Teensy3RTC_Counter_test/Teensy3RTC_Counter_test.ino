@@ -20,6 +20,7 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, led_state);   // turn the LED on (HIGH is the voltage level)
   delay(1000);
+  
   RTC_counter.begin();
 }
 

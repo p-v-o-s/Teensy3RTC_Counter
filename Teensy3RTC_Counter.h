@@ -5,10 +5,14 @@
 #ifndef _TEENSY3RTC_COUNTER_H_INCLUDED
 #define _TEENSY3RTC_COUNTER_H_INCLUDED
 #include <Arduino.h>
+
 /*******************************************************************************
   Teensy3RTC_CounterClass
   
 *******************************************************************************/
+#define RTC_COMPENSATE 0
+#define TWO_POW_20 1048576
+
 class _Teensy3RTC_CounterClass{
 public:
   _Teensy3RTC_CounterClass(){};
@@ -18,7 +22,7 @@ public:
   }
   //Functionality methods
   void reset(){
-    while (_mutex){}; //spin until released
+    //while (_mutex){}; //spin until released
     _mutex = true;
     // CRITICAL SECTION --------------------------------------------------------
     NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
@@ -30,6 +34,7 @@ public:
     _leftover_microseconds = 0;
     RTC_SR = RTC_SR_TCE;               //renable the seconds counter (TCE)
     RTC_IER |= 0x10;                   //set the TSIE bit (Time Seconds Interrupt Enable)
+    Teensy3Clock.compensate(RTC_COMPENSATE);
     NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);   //enable interrupt
     // END CRITICAL SECTION ----------------------------------------------------
     _mutex = false;
@@ -39,7 +44,7 @@ public:
     return _seconds;
   }
   uint32_t get_microseconds(){
-    while (_mutex){}; //spin until released
+    //while (_mutex){}; //spin until released
     return _compensated_micros();
   }
   float get_timestamp_float32(){
@@ -110,11 +115,10 @@ public:
     return timestamp;
   }
   void _seconds_tick(){
-    while (_mutex){}; //spin until released
     _mutex = true;
     // CRITICAL SECTION --------------------------------------------------------
     NVIC_DISABLE_IRQ(IRQ_RTC_SECOND);  //disable interrupt
-    //_leftover_microseconds = 1000000 - _compensated_micros();  //save for compensation
+    //_leftover_microseconds = 1000000 - _microseconds;  //save for compensation
     _seconds++;
     _microseconds = 0;
     NVIC_ENABLE_IRQ(IRQ_RTC_SECOND);  //enable interrupt
@@ -122,7 +126,8 @@ public:
     _mutex = false;
   }
   uint32_t _compensated_micros(){
-    return _microseconds;// + _microseconds*_leftover_microseconds/1000000;
+    return _microseconds;
+    //return (_microseconds*(TWO_POW_20 + _leftover_microseconds)) >> 20;  //OPTIMIZED DO NOT CHANGE
   }
   
 private:
