@@ -10,7 +10,6 @@
   Teensy3RTC_CounterClass
   
 *******************************************************************************/
-#define RTC_COMPENSATE 582
 
 class _Teensy3RTC_CounterClass{
 public:
@@ -25,6 +24,8 @@ public:
     noInterrupts();
     _prescaler_offset  = RTC_TPR;      //save the current state of the Time Prescaler Register
     _seconds_offset    = RTC_TSR;      //save the current state of the Time Seconds Register
+    _prescaler_stored  = _prescaler_offset; //ensure that the first "stored" timing is 0
+    _seconds_stored    = _seconds_offset;   //ensure that the first "stored" timing is 0
     interrupts();
     // END CRITICAL SECTION ----------------------------------------------------
   }
@@ -44,40 +45,66 @@ public:
     return _micros_count();
   }
   float  get_timestamp_float32(){
+    // CRITICAL SECTION --------------------------------------------------------
+    noInterrupts();
     float timestamp = _seconds_count() + _micros_count()/1e6;
+    interrupts();
+    // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
   }
   double get_timestamp_float64(){
+    // CRITICAL SECTION --------------------------------------------------------
+    noInterrupts();
     double timestamp = _seconds_count() + _micros_count()/1e6;
+    interrupts();
+    // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
   }
   uint32_t get_timestamp_millis(){
     //warning: rolls over in ~49.7 days
+    // CRITICAL SECTION --------------------------------------------------------
+    noInterrupts();
     uint32_t timestamp = 1000*_seconds_count();
     timestamp +=  _millis_count();
+    interrupts();
+    // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
   }
   uint32_t get_timestamp_millitenths(){
     //warning: rolls over in ~4.97 days
+    // CRITICAL SECTION --------------------------------------------------------
+    noInterrupts();
     uint32_t timestamp = 10000*_seconds_count();
     timestamp += _millitenths_count();
+    interrupts();
+    // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
   }
   uint32_t get_timestamp_millihundreths(){
     //warning: rolls over in ~11.9 hours
+    // CRITICAL SECTION --------------------------------------------------------
+    noInterrupts();
     uint32_t timestamp = 100000*_seconds_count();
     timestamp +=  _millihundreths_count();
+    interrupts();
+    // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
   }
   uint32_t get_timestamp_micros(){
     //warning: rolls over in ~1.19 hours
+    // CRITICAL SECTION --------------------------------------------------------
+    noInterrupts();
     uint32_t timestamp = 1000000*_seconds_count();
     timestamp += _micros_count();
     return timestamp;
   }
   uint64_t get_timestamp_micros64(){
+    // CRITICAL SECTION --------------------------------------------------------
+    noInterrupts();
     uint64_t timestamp = 1000000*_seconds_count();
     timestamp += _micros_count();
+    interrupts();
+    // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
   }
 
