@@ -20,7 +20,7 @@ try:
 
         t_ext = D[:,0]
         t_rtc = D[:,1]  #makes early plots look better
-        t_mic = D[:,2]
+        t_mcu = D[:,2]
         #t_mic = np.where((t_mic - t_ext) < 0.0,t_mic + 4295-0.03286096,t_mic)
         t_cpu = D[:,3]
         t_ntp = np.round(D[:,4])
@@ -28,7 +28,7 @@ try:
         fig.clf()
         ax  = fig.add_subplot(111)
         ax.plot(t_ext, t_rtc-t_ext, "r.-", label = "RTC time diff.")
-        ax.plot(t_ext, t_mic-t_ext, "m.-", label = "MCU time diff.")
+        ax.plot(t_ext, t_mcu-t_ext, "m.-", label = "MCU time diff.")
         ax.plot(t_ext, t_cpu-t_ext, "c.-", label = "CPU time diff.")
         ax.plot(t_ext, t_ntp-t_ext, "g.-", label = "NTP time diff.")
         ax.legend(loc="upper left")

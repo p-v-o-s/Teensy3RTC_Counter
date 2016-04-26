@@ -28,10 +28,10 @@ def ntp_timestamp_generator(server = DEFAULT_SERVER,
         try:
             last_lt, last_cst, last_crt = get_corrected_timestamps()
             yield (last_lt, last_cst, last_crt)
-        except NTPException, excp:
+        except NTPException, err:
             lt = local_timestamp()
             dt = lt - last_lt - timeout #correct for timeout
-            print("WARNING: caught \"%s\"" % excp, file = sys.stderr)
+            print("WARNING: in %s caught \"%s\"" % (__name__,err), file=sys.stderr)
             last_lt, last_cst, last_crt = (lt, last_cst + dt, last_crt + dt)
             yield (last_lt, last_cst, last_crt)
             

@@ -5,7 +5,8 @@
            4. run this script
            5. turn on function generator output
 """
-import glob, time
+from __future__ import print_function
+import sys, glob, time
 import serial
 from NTP_timestamp_generator import gen_ntp
 
@@ -30,12 +31,14 @@ try:
     t0_ntp = cst #use the latency corrected request sent time
     write_out(in_line,0,0)
     while True:
-        in_line = ser.readline()
-        t1_cpu  = time.time()
-        lt, cst, crt = gen_ntp.next()
-        t1_ntp = cst #use the latency corrected request sent time
-        write_out(in_line,t1_cpu-t0_cpu,t1_ntp-t0_ntp)
-        
+        try:
+            in_line = ser.readline()
+            t1_cpu  = time.time()
+            lt, cst, crt = gen_ntp.next()
+            t1_ntp = cst #use the latency corrected request sent time
+            write_out(in_line,t1_cpu-t0_cpu,t1_ntp-t0_ntp)
+        except Exception, err:
+            print("WARNING: in %s caught \"%s\"" % (__name__,err), file=sys.stderr)
 except KeyboardInterrupt:
     pass
 finally:

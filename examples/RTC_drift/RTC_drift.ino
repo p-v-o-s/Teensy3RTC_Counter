@@ -8,8 +8,7 @@
 
 #define EXTERNAL_TIMER_INTERRUPT_PIN 8
 #define LED_PIN 13
-//efine RTC_COMPENSATE 634
-#define RTC_COMPENSATE -38
+//#define RTC_COMPENSATE -41
 #define INTERVAL 10
 #define ISR_DEBOUNCE_MICROS 500000
 
@@ -38,11 +37,8 @@ void setup() {
   //Teensy3Clock.compensate(RTC_COMPENSATE);
   RTC_SR = 0;                        //reset Status Register and disable seconds counter (!TCE)
   RTC_TPR = 0;                       //reset Time Prescaler Register
-  RTC_CR &= ~0x3c00;  //clear load capacitor settings
-  RTC_CR |=  0x2000;  //set the 2pF capacitor
-  RTC_CR |=  0x1000;  //set the 4pF capacitor
-  //RTC_CR |=  0x0800;  //set the 8pF capacitor
-  Teensy3Clock.compensate(RTC_COMPENSATE);
+  rtc_configure_load_capacitance(8); //pF
+  //rtc_compensate_min_interval_min_error(-4.53089845);
   RTC_SR = RTC_SR_TCE;               //renable the seconds counter (TCE)
   RTC_counter.begin();
   //setup interrupt
