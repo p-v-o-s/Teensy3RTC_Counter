@@ -6,6 +6,139 @@
 #define _TEENSY3RTC_COUNTER_H_INCLUDED
 #include <Arduino.h>
 
+
+
+void rtc_configure_load_capacitance(uint8_t pF){
+  RTC_CR &= ~0x3c00;  //clear load capacitor settings
+  switch(pF){
+  case 1:
+  case 2:
+  case 3:
+    RTC_CR |=  0x2000;  //set the 2pF capacitor
+    break;
+  case 4:
+  case 5:
+    RTC_CR |=  0x1000;  //set the 4pF capacitor
+    break;
+  case 6:
+  case 7:
+    RTC_CR |=  0x2000;  //set the 2pF capacitor
+    RTC_CR |=  0x1000;  //set the 4pF capacitor
+    break;
+  case 8:
+  case 9:
+    RTC_CR |=  0x0800;  //set the 8pF capacitor
+    break;
+  case 10:
+  case 11:
+    RTC_CR |=  0x2000;  //set the 2pF capacitor
+    RTC_CR |=  0x0800;  //set the 8pF capacitor
+    break;
+  case 12:
+  case 13:
+    RTC_CR |=  0x1000;  //set the 4pF capacitor
+    RTC_CR |=  0x0800;  //set the 8pF capacitor
+    break;
+  case 14:
+  case 15:
+    RTC_CR |=  0x2000;  //set the 2pF capacitor
+    RTC_CR |=  0x1000;  //set the 4pF capacitor
+    RTC_CR |=  0x0800;  //set the 8pF capacitor
+    break;
+  case 16:
+  case 17:
+    RTC_CR |=  0x0400;  //set the 16pF capacitor
+    break;
+  case 18:
+  case 19:
+    RTC_CR |=  0x2000;  //set the 2pF capacitor
+    RTC_CR |=  0x0400;  //set the 16pF capacitor
+    break;
+  case 20:
+  case 21:
+    RTC_CR |=  0x1000;  //set the 4pF capacitor
+    RTC_CR |=  0x0400;  //set the 16pF capacitor
+    break;
+  case 22:
+  case 23:
+    RTC_CR |=  0x2000;  //set the 2pF capacitor
+    RTC_CR |=  0x1000;  //set the 4pF capacitor
+    RTC_CR |=  0x0400;  //set the 16pF capacitor
+    break;
+  case 24:
+  case 25:
+    RTC_CR |=  0x0800;  //set the 8pF capacitor
+    RTC_CR |=  0x0400;  //set the 16pF capacitor
+    break;
+  case 26:
+  case 27:
+    RTC_CR |=  0x2000;  //set the 2pF capacitor
+    RTC_CR |=  0x0800;  //set the 8pF capacitor
+    RTC_CR |=  0x0400;  //set the 16pF capacitor
+    break;
+  case 28:
+  case 29:
+    RTC_CR |=  0x1000;  //set the 4pF capacitor
+    RTC_CR |=  0x0800;  //set the 8pF capacitor
+    RTC_CR |=  0x0400;  //set the 16pF capacitor
+    break;
+  case 30:
+  default:
+    RTC_CR |=  0x2000;  //set the 2pF capacitor
+    RTC_CR |=  0x1000;  //set the 4pF capacitor
+    RTC_CR |=  0x0800;  //set the 8pF capacitor
+    RTC_CR |=  0x0400;  //set the 16pF capacitor
+    break;
+  }
+}
+
+uint32_t rtc_compensate_min_interval_min_error(float adjust_ppm)
+{
+  uint32_t interval, tcr, err;
+ 
+  // We want to choose the smallest interval that minimizes the
+  // error (remainder) in the calculation 
+  if (adjust_ppm >= 0) {
+    uint32_t min_err = 256;         //initialize to one more than largest possible error
+    uint32_t tcr_min_err = 0;       //initialize to no compensation
+    uint32_t interval_min_err = 0;  //initialize to shortest compensation interval 0, means 1 second
+
+    float comp = adjust_ppm*8.0;
+    for(interval = 1; interval < 256; interval++) {
+      tcr = (int) (comp*interval + 0.5); //round to nearest integer
+      err = tcr % 256;                   //this is the error due to discretization
+      if (err < min_err){                //only save the best with the smallest interval
+        min_err     = err;
+        tcr_min_err = tcr;
+        interval_min_err = interval;
+      }
+    }
+    tcr = tcr_min_err >> 8;
+    interval = interval_min_err;
+  } 
+  else {
+    uint32_t min_err = 256;         //initialize to one more than largest possible error
+    uint32_t tcr_min_err = 0;       //initialize to no compensation
+    uint32_t interval_min_err = 0;  //initialize to shortest compensation interval 0, means 1 second
+    
+    float comp = -adjust_ppm*8.0;   //convert to a positie quantity
+    for(interval = 1; interval < 256; interval++) {
+      tcr = (int) (comp*interval + 0.5); //round to nearest integer
+      err = tcr % 256;                   //this is the error due to discretization
+      if (err < min_err){                //only save the best with the smallest interval
+        min_err     = err;
+        tcr_min_err = tcr;
+        interval_min_err = interval;
+      }
+    }
+    tcr = tcr_min_err >> 8;
+    tcr = 256 - tcr;
+    interval = interval_min_err;
+  }
+  RTC_TCR = ((interval - 1) << 8) | tcr;
+  return interval;
+}
+
 /*******************************************************************************
   Teensy3RTC_CounterClass
   
