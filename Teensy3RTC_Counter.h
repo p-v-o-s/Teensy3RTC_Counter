@@ -6,7 +6,7 @@
 #define _TEENSY3RTC_COUNTER_H_INCLUDED
 #include <Arduino.h>
 
-
+#define RTC_COMPENSATE_MAX_INTERVAL 256
 
 void rtc_configure_load_capacitance(uint8_t pF){
   RTC_CR &= ~0x3c00;  //clear load capacitor settings
@@ -92,51 +92,37 @@ void rtc_configure_load_capacitance(uint8_t pF){
   }
 }
 
-uint32_t rtc_compensate_min_interval_min_error(float adjust_ppm)
-{
-  uint32_t interval, tcr, err;
- 
-  // We want to choose the smallest interval that minimizes the
-  // error (remainder) in the calculation 
-  if (adjust_ppm >= 0) {
-    uint32_t min_err = 256;         //initialize to one more than largest possible error
-    uint32_t tcr_min_err = 0;       //initialize to no compensation
-    uint32_t interval_min_err = 0;  //initialize to shortest compensation interval 0, means 1 second
+struct rtc_compensate_params_type{
+  float   adjust_ppm = 0;
+  uint8_t   interval = 256; //defines maximum interval under this value
+  uint32_t       tcr = 0;   //initialize to no compensation
+  int16_t        err = 128; //initialize to largest positive error
+};
 
-    float comp = adjust_ppm*8.0;
-    for(interval = 1; interval < 256; interval++) {
-      tcr = (int) (comp*interval + 0.5); //round to nearest integer
-      err = tcr % 256;                   //this is the error due to discretization
-      if (err < min_err){                //only save the best with the smallest interval
-        min_err     = err;
-        tcr_min_err = tcr;
-        interval_min_err = interval;
-      }
+void rtc_compensate_min_interval_min_error(rtc_compensate_params_type &params)
+{
+  uint32_t interval, tcr; //temporary calculations
+  int16_t  err;
+  // We want to choose the smallest interval with in bounds of params.interval that minimizes the
+  // error (positive of negative remainder) in the calculation
+  float comp = abs(params.adjust_ppm*8.0);          //scale to PPM/8 units
+  int max_interval = params.interval;               //this limits the search
+  for(interval = 1; interval < max_interval; interval++) {
+    tcr = (uint32_t) (comp*interval + 0.5);         //round to nearest integer
+    err = tcr % 256;                                //this is the error due to discretization
+    err = (err > 128)? -(256 - err): err;           //allow for negative errors, i.e. undercompensation
+    if (abs(err) < abs(params.err)){                //compare magnitudes and only save the smallest seen so far
+      params.err = err;
+      params.tcr = tcr;
+      params.interval = interval;
     }
-    tcr = tcr_min_err >> 8;
-    interval = interval_min_err;
-  } 
-  else {
-    uint32_t min_err = 256;         //initialize to one more than largest possible error
-    uint32_t tcr_min_err = 0;       //initialize to no compensation
-    uint32_t interval_min_err = 0;  //initialize to shortest compensation interval 0, means 1 second
-    
-    float comp = -adjust_ppm*8.0;   //convert to a positie quantity
-    for(interval = 1; interval < 256; interval++) {
-      tcr = (int) (comp*interval + 0.5); //round to nearest integer
-      err = tcr % 256;                   //this is the error due to discretization
-      if (err < min_err){                //only save the best with the smallest interval
-        min_err     = err;
-        tcr_min_err = tcr;
-        interval_min_err = interval;
-      }
-    }
-    tcr = tcr_min_err >> 8;
-    tcr = 256 - tcr;
-    interval = interval_min_err;
   }
-  RTC_TCR = ((interval - 1) << 8) | tcr;
-  return interval;
+  params.tcr = params.tcr >> 8;   //scale back down
+  if (params.adjust_ppm < 0.0) {  //correct for negative adjustment
+    params.tcr = 256 - params.tcr;
+  }
+  //set the Time Compensation Register
+  RTC_TCR = ((params.interval - 1) << 8) | params.tcr;
 }
 
 /*******************************************************************************

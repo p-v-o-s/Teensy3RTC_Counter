@@ -33,18 +33,28 @@ void setup() {
   digitalWrite(LED_PIN, LOW);   // turn the LED on (HIGH is the voltage level)
    // initialize the digital pin as an output.
   pinMode(EXTERNAL_TIMER_INTERRUPT_PIN, INPUT);
+  Serial.begin(9600);
+  delay(2000);
   //configure the Teensy3 RTC
   //Teensy3Clock.compensate(RTC_COMPENSATE);
   RTC_SR = 0;                        //reset Status Register and disable seconds counter (!TCE)
   RTC_TPR = 0;                       //reset Time Prescaler Register
-  rtc_configure_load_capacitance(8); //pF
-  //rtc_compensate_min_interval_min_error(-4.53089845);
+  rtc_configure_load_capacitance(26); //pF
+  struct rtc_compensate_params_type params;
+  params.adjust_ppm = 0.3;
+  params.interval = 255; //limit the interval to under 30s
+  rtc_compensate_min_interval_min_error(params);
+  Serial.print(F("#RTC compensation parameters have be optimized to:\n"));
+  Serial.print(F("#\tadjust_ppm = "));Serial.print(params.adjust_ppm,16);Serial.print(F("\n"));
+  Serial.print(F("#\t  interval = "));Serial.print(params.interval)     ;Serial.print(F("\n"));
+  Serial.print(F("#\t       tcr = "));Serial.print(params.tcr)          ;Serial.print(F("\n"));
+  Serial.print(F("#\t       err = "));Serial.print(params.err)          ;Serial.print(F("\n"));
   RTC_SR = RTC_SR_TCE;               //renable the seconds counter (TCE)
   RTC_counter.begin();
   //setup interrupt
   attachInterrupt(digitalPinToInterrupt(EXTERNAL_TIMER_INTERRUPT_PIN), external_timer_ISR, FALLING);
   while (!ISR_dataready){;} //wait for interrupt to start
-  Serial.begin(9600);
+  
 }
 
 
