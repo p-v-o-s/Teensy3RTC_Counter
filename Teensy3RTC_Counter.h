@@ -94,30 +94,30 @@ void rtc_configure_load_capacitance(uint8_t pF){
 
 struct rtc_compensate_params_type{
   float   adjust_ppm = 0;
-  uint8_t   interval = 256; //defines maximum interval under this value
+  uint32_t  interval = 256; //defines maximum interval under this value
   uint32_t       tcr = 0;   //initialize to no compensation
-  int16_t        err = 128; //initialize to largest positive error
-};
+  float          err = 10.0; //initialize to a large error PPM
+}; 
 
 void rtc_compensate_min_interval_min_error(rtc_compensate_params_type &params)
 {
-  uint32_t interval, tcr; //temporary calculations
-  int16_t  err;
-  // We want to choose the smallest interval with in bounds of params.interval that minimizes the
-  // error (positive of negative remainder) in the calculation
-  float comp = abs(params.adjust_ppm*8.0);          //scale to PPM/8 units
-  int max_interval = params.interval;               //this limits the search
+  // We want to choose the smallest interval with in bounds of params.interval 
+  // that minimizes the error due to discretization
+  uint32_t interval;
+  float    comp = abs(params.adjust_ppm*8.0); //scale to PPM/8 units
+  uint32_t max_interval = params.interval;               //this limits the search
   for(interval = 1; interval < max_interval; interval++) {
-    tcr = (uint32_t) (comp*interval + 0.5);         //round to nearest integer
-    err = tcr % 256;                                //this is the error due to discretization
-    err = (err > 128)? -(256 - err): err;           //allow for negative errors, i.e. undercompensation
-    if (abs(err) < abs(params.err)){                //compare magnitudes and only save the smallest seen so far
+    //temporary calculations
+    float   prod = comp*interval/256.0;
+    uint32_t tcr = (uint32_t) prod;  //this must be a integer value
+    float    err = prod - tcr;       //error due to discretization
+    //Serial.print(interval);Serial.print(" ");Serial.print(prod);Serial.print(" ");Serial.print(tcr);Serial.print(" ");Serial.println(err,6);
+    if (abs(err) < abs(params.err)){        //compare magnitudes and only save the smallest seen so far
       params.err = err;
       params.tcr = tcr;
       params.interval = interval;
     }
   }
-  params.tcr = params.tcr >> 8;   //scale back down
   if (params.adjust_ppm < 0.0) {  //correct for negative adjustment
     params.tcr = 256 - params.tcr;
   }
