@@ -41,11 +41,11 @@ void setup() {
   RTC_TPR = 0;                       //reset Time Prescaler Register
   rtc_configure_load_capacitance(28); //pF
   struct rtc_compensate_params_type params;
-  params.adjust_ppm = 1.21;
+  params.adjust_ppm = 2.1249528875;
   params.interval = 255; //limit the interval to under 30s
   rtc_compensate_min_interval_min_error(params);
   Serial.print(F("#RTC compensation parameters have be optimized to:\n"));
-  Serial.print(F("#\tadjust_ppm = "));Serial.print(params.adjust_ppm,16);Serial.print(F("\n"));
+  Serial.print(F("#\tadjust_ppm = "));Serial.print(params.adjust_ppm,10);Serial.print(F("\n"));
   Serial.print(F("#\t  interval = "));Serial.print(params.interval)     ;Serial.print(F("\n"));
   Serial.print(F("#\t       tcr = "));Serial.print(params.tcr)          ;Serial.print(F("\n"));
   Serial.print(F("#\t       err = "));Serial.print(params.err,6)          ;Serial.print(F("\n"));

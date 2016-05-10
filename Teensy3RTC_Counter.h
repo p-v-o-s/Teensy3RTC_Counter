@@ -199,12 +199,12 @@ public:
     // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
   }
-  uint32_t get_timestamp_millihundreths(){
+  uint32_t get_timestamp_millihundredths(){
     //warning: rolls over in ~11.9 hours
     // CRITICAL SECTION --------------------------------------------------------
     noInterrupts();
     uint32_t timestamp = 100000*_seconds_count();
-    timestamp +=  _millihundreths_count();
+    timestamp +=  _millihundredths_count();
     interrupts();
     // END CRITICAL SECTION ----------------------------------------------------
     return timestamp;
@@ -238,7 +238,7 @@ private:
   int32_t _micros_count(){                       // NOTE: the return type must be signed!
     return ((_prescaler_count()*15625) >> 9);    // OPTIMIZED = pc*10^6/2^15
   }
-  int32_t _millihundreths_count(){               // NOTE: the return type must be signed!
+  int32_t _millihundredths_count(){               // NOTE: the return type must be signed!
     return ((_prescaler_count()*3125)  >> 10);   // OPTIMIZED = pc*10^5/2^15
   }
   int32_t _millitenths_count(){                  // NOTE: the return type must be signed!
