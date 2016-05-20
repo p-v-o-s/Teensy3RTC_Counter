@@ -11,7 +11,9 @@
 void rtc_configure_load_capacitance(uint8_t pF){
   RTC_CR &= ~0x3c00;  //clear load capacitor settings
   switch(pF){
+  case 0:
   case 1:
+    break;
   case 2:
   case 3:
     RTC_CR |=  0x2000;  //set the 2pF capacitor
